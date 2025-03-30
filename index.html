@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Johir Hero</title>
+</head>
+
+<body>
+    <h1>Johir Hero</h1>
+    <main class="flex row">
+        <!-- Left side: Song Selection -->
+        <div id="leftControls">
+            <div class="song-selection">
+                <div>Song Selection</div>
+                <select id="songSelect"></select>
+                <button id="changeSongButton">Change Song</button>
+            </div>
+        </div>
+
+        <!-- Center: Game Area -->
+        <div class="game-container">
+            <svg id="svgCanvas" width="200" height="400">
+                <!-- Guitar gradients for notes -->
+                <defs>
+                    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#a8ff78;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#78ffd6;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#ff2a2a;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#56ccf2;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#2f80ed;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#f2994a;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#f2c94c;stop-opacity:1" />
+                    </linearGradient>
+                    
+                    <!-- Glowing effects for hit zones -->
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                <!-- Game backdrop with fretboard-like design -->
+                <rect x="0" y="0" width="200" height="400" fill="#0a0a1a" />
+                
+                <!-- Lane dividers with subtle glow -->
+                <line x1="50" y1="0" x2="50" y2="400" stroke="#444" stroke-width="1" />
+                <line x1="100" y1="0" x2="100" y2="400" stroke="#444" stroke-width="1" />
+                <line x1="150" y1="0" x2="150" y2="400" stroke="#444" stroke-width="1" />
+                
+                <!-- Lane backgrounds -->
+                <rect x="0" y="0" width="50" height="400" fill="#111122" opacity="0.3" />
+                <rect x="50" y="0" width="50" height="400" fill="#221111" opacity="0.3" />
+                <rect x="100" y="0" width="50" height="400" fill="#111122" opacity="0.3" />
+                <rect x="150" y="0" width="50" height="400" fill="#222211" opacity="0.3" />
+
+                <!-- Hit zone indicator with glowing effect -->
+                <rect x="0" y="340" width="200" height="20" fill="#222" stroke="#444" stroke-width="1" />
+                
+                <!-- Hit zone targets with improved design and correct positioning -->
+                <circle cx="25" cy="350" r="15" fill="none" stroke="url(#greenGradient)" stroke-width="3" filter="url(#glow)" />
+                <circle cx="75" cy="350" r="15" fill="none" stroke="url(#redGradient)" stroke-width="3" filter="url(#glow)" />
+                <circle cx="125" cy="350" r="15" fill="none" stroke="url(#blueGradient)" stroke-width="3" filter="url(#glow)" />
+                <circle cx="175" cy="350" r="15" fill="none" stroke="url(#yellowGradient)" stroke-width="3" filter="url(#glow)" />
+
+                <!-- Game over text -->
+                <g id="gameOver" visibility="hidden">
+                    <rect x="0" y="150" width="200" height="100" fill="rgba(0, 0, 0, 0.8)" rx="10" ry="10"/>
+                    <text x="100" y="200" text-anchor="middle" fill="#f39c12" font-size="24" font-weight="bold">Game Over</text>
+                </g>
+            </svg>
+            <div id="restartButton">Press R to Restart</div>
+            <div id="info" class="flex col">
+                <div class="text">
+                    <div class="left">Score:</div>
+                    <div class="right" id="scoreText">0</div>
+                </div>
+                <div class="text">
+                    <div class="left">Multiplier:</div>
+                    <div class="right" id="multiplierText">1.0</div>
+                </div>
+                <div class="text" id="comboText">
+                    <div class="left">Combo:</div>
+                    <div class="right" id="comboValue">0</div>
+                </div>
+                <div class="text">
+                    <div class="left">High Score:</div>
+                    <div class="right" id="highScoreText">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right side: Controls -->
+        <div id="controls">
+            <div id="controlsLabel">Controls</div>
+            <div>
+                <button id="keyH" class="control-button">H</button>
+                <button id="keyJ" class="control-button">J</button>
+                <button id="keyK" class="control-button">K</button>
+                <button id="keyL" class="control-button">L</button>
+            </div>
+            <div id="restartInstruction">Press R to Restart</div>
+        </div>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
