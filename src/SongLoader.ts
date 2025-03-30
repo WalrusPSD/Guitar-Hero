@@ -1,33 +1,31 @@
 import { Song, SongData } from "./Song";
 import { SongList } from "./SongList";
-import { hardcodedSongs } from "./hardcodedSongs";
+import { songDataBank } from "./songDataBank";
 
 export class SongLoader {
     async load(songList: SongList): Promise<SongData[]> {
         const songs: SongData[] = [];
         console.log(
-            "Starting to load hardcoded songs, song list has:",
+            "Starting to load song data, song list has:",
             songList.songs.length,
             "songs",
         );
 
         for (const songInfo of songList.songs) {
             try {
-                // Get the song data from hardcoded songs based on filename
+                // Get the song data from song data bank based on filename
                 const songKey = songInfo.file.replace(
                     ".csv",
                     "",
-                ) as keyof typeof hardcodedSongs;
-                const csvText = hardcodedSongs[songKey];
+                ) as keyof typeof songDataBank;
+                const csvText = songDataBank[songKey];
 
                 if (!csvText) {
-                    throw new Error(
-                        `Hardcoded song data not found for: ${songKey}`,
-                    );
+                    throw new Error(`Song data not found for: ${songKey}`);
                 }
 
                 console.log(
-                    `Successfully loaded hardcoded data for ${songInfo.name}, length: ${csvText.length}`,
+                    `Successfully loaded song data for ${songInfo.name}, length: ${csvText.length}`,
                 );
 
                 const songData = this.parseCSV(csvText);

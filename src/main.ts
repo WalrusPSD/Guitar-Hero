@@ -5,7 +5,7 @@ import * as Tone from "tone";
 import { SampleLibrary } from "./tonejs-instruments";
 import { setupAssetDebugger } from "./utils/assetDebugger";
 import { debugVercelAssets } from "./utils/vercelDebugger";
-import { hardcodedSongs } from "./hardcodedSongs";
+import { songDataBank } from "./songDataBank";
 
 // Constants
 const Viewport = {
@@ -283,12 +283,17 @@ const updateState = (
     );
 
     const newConsecutiveNotesHit =
-        missedNotes.length > 0 ? 0 : state.consecutiveNotesHit; // Reset cobo if a note is missed
+        missedNotes.length > 0 ? 0 : state.consecutiveNotesHit; // Reset combo if a note is missed
     const newMultiplier = 1 + Math.floor(newConsecutiveNotesHit / 10) * 0.2; // Calculate new score multiplier
 
+    // Only set game over when all notes have passed and we've waited another 5 seconds after the last note
+    const lastNoteTime = Math.max(
+        ...allNotes.map((note) => note.startTime + note.duration),
+    );
     const gameOver =
-        currentTime >=
-        Math.max(...allNotes.map((note) => note.startTime + note.duration)); // Check if game is over
+        currentTime >= lastNoteTime + 5 && // Add a 5-second delay after the last note
+        updatedNotes.length === 0 && // All notes have been played or missed
+        updatedSustainedNotes.length === 0; // No sustained notes are active
 
     return {
         ...state,
@@ -580,8 +585,8 @@ function main(csvContents: string, samples: { [key: string]: Tone.Sampler }) {
         const selectedSong = songSelect.value;
         try {
             // Use hardcoded song data instead of fetching from file
-            const songKey = selectedSong as keyof typeof hardcodedSongs;
-            const text = hardcodedSongs[songKey];
+            const songKey = selectedSong as keyof typeof songDataBank;
+            const text = songDataBank[songKey];
 
             if (!text) {
                 throw new Error(`Song data not found for: ${selectedSong}`);
@@ -705,8 +710,8 @@ document.addEventListener("restart", () => {
 
     const currentSong = songSelect.value;
     // Use hardcoded song data instead of fetching
-    const songKey = currentSong as keyof typeof hardcodedSongs;
-    const csvText = hardcodedSongs[songKey];
+    const songKey = currentSong as keyof typeof songDataBank;
+    const csvText = songDataBank[songKey];
 
     if (csvText) {
         // Create a custom event to restart the game
@@ -732,8 +737,8 @@ document.addEventListener("keydown", (e) => {
         const currentSong = songSelect.value;
 
         // Use hardcoded song data instead of fetching CSV
-        const songKey = currentSong as keyof typeof hardcodedSongs;
-        const csvText = hardcodedSongs[songKey];
+        const songKey = currentSong as keyof typeof songDataBank;
+        const csvText = songDataBank[songKey];
 
         if (csvText) {
             const changeSongEvent = new CustomEvent("changeSong", {
@@ -833,8 +838,8 @@ window.addEventListener("DOMContentLoaded", () => {
                 }) {
                     // Use hardcoded song data
                     const defaultSongKey =
-                        Constants.SONG_NAME as keyof typeof hardcodedSongs;
-                    const text = hardcodedSongs[defaultSongKey];
+                        Constants.SONG_NAME as keyof typeof songDataBank;
+                    const text = songDataBank[defaultSongKey];
 
                     // Create a default piano sampler if no samples were loaded
                     if (!loadedSamples) {
@@ -883,8 +888,8 @@ window.addEventListener("DOMContentLoaded", () => {
                 console.error("Error in sample initialization:", error);
                 // Force start with no samples as a last resort
                 const defaultSongKey =
-                    Constants.SONG_NAME as keyof typeof hardcodedSongs;
-                const text = hardcodedSongs[defaultSongKey];
+                    Constants.SONG_NAME as keyof typeof songDataBank;
+                const text = songDataBank[defaultSongKey];
 
                 const startGame = () => {
                     main(text, {});
