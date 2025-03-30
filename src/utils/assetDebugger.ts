@@ -1,52 +1,59 @@
 // This file helps troubleshoot asset loading issues in production
 
+export async function debugFetch(
+    url: string | URL | Request,
+    init?: RequestInit,
+): Promise<Response> {
+    console.log(
+        `🌐 Fetching: ${url instanceof URL ? url.toString() : url instanceof Request ? url.url || "(Request object)" : url}`,
+    );
+
+    return fetch(url, init)
+        .then((response) => {
+            if (
+                !response.ok &&
+                typeof url === "string" &&
+                url.includes("/assets/")
+            ) {
+                console.error(
+                    `Failed to load asset: ${url}`,
+                    response.status,
+                    response.statusText,
+                );
+            }
+            return response;
+        })
+        .catch((error) => {
+            console.error(`Error fetching ${url}:`, error);
+            throw error;
+        });
+}
+
+// Add a global error handler to catch and log all errors
+export function handleError(message: string, error: unknown): void {
+    console.error(
+        `❌ ${message}:`,
+        error instanceof Error ? error.message : String(error),
+    );
+    // Create a visible error message on the page for easier debugging
+    const errorDiv = document.createElement("div");
+    errorDiv.style.position = "fixed";
+    errorDiv.style.bottom = "10px";
+    errorDiv.style.left = "10px";
+    errorDiv.style.backgroundColor = "rgba(255,0,0,0.8)";
+    errorDiv.style.color = "white";
+    errorDiv.style.padding = "10px";
+    errorDiv.style.borderRadius = "5px";
+    errorDiv.style.zIndex = "9999";
+    errorDiv.textContent = `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
+    document.body.appendChild(errorDiv);
+
+    // Auto-remove after 10 seconds
+    setTimeout(() => errorDiv.remove(), 10000);
+}
+
+// Add a debug button to check asset paths
 export function setupAssetDebugger() {
-    // Add a global error handler to catch and log all errors
-    window.addEventListener("error", (event) => {
-        console.error("Global error caught:", event.error);
-
-        // Create a visible error message on the page for easier debugging
-        const errorDiv = document.createElement("div");
-        errorDiv.style.position = "fixed";
-        errorDiv.style.bottom = "10px";
-        errorDiv.style.left = "10px";
-        errorDiv.style.backgroundColor = "rgba(255,0,0,0.8)";
-        errorDiv.style.color = "white";
-        errorDiv.style.padding = "10px";
-        errorDiv.style.borderRadius = "5px";
-        errorDiv.style.zIndex = "9999";
-        errorDiv.textContent = `Error: ${event.error?.message || "Unknown error"}`;
-        document.body.appendChild(errorDiv);
-
-        // Auto-remove after 10 seconds
-        setTimeout(() => errorDiv.remove(), 10000);
-    });
-
-    // Log asset loading attempts
-    const originalFetch = window.fetch;
-    window.fetch = function (input, init) {
-        const url = typeof input === "string" ? input : input.url;
-        console.log(`Attempting to fetch: ${url}`);
-
-        return originalFetch
-            .apply(this, [input, init])
-            .then((response) => {
-                if (!response.ok && url.includes("/assets/")) {
-                    console.error(
-                        `Failed to load asset: ${url}`,
-                        response.status,
-                        response.statusText,
-                    );
-                }
-                return response;
-            })
-            .catch((error) => {
-                console.error(`Error fetching ${url}:`, error);
-                throw error;
-            });
-    };
-
-    // Add a debug button to check asset paths
     const debugButton = document.createElement("button");
     debugButton.textContent = "Debug Assets";
     debugButton.style.position = "fixed";
@@ -79,7 +86,9 @@ export function setupAssetDebugger() {
             }
         } catch (error) {
             console.error("Debug check failed:", error);
-            alert(`Error checking assets: ${error.message}`);
+            alert(
+                `Error checking assets: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
     });
 

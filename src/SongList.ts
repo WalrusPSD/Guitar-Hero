@@ -1,3 +1,5 @@
+import { Song } from "./Song";
+
 export class SongList {
     songs: Song[] = [];
 
