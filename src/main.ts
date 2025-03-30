@@ -579,16 +579,21 @@ function main(csvContents: string, samples: { [key: string]: Tone.Sampler }) {
     changeSongButton.addEventListener("click", async () => {
         const selectedSong = songSelect.value;
         try {
-            // Change from "/assets/" to "./assets/" for relative path
-            const response = await fetch(`./assets/${selectedSong}.csv`);
-            const text = await response.text();
+            // Use hardcoded song data instead of fetching from file
+            const songKey = selectedSong as keyof typeof hardcodedSongs;
+            const text = hardcodedSongs[songKey];
+
+            if (!text) {
+                throw new Error(`Song data not found for: ${selectedSong}`);
+            }
+
             // Create a custom event to restart with new song
             const changeSongEvent = new CustomEvent("changeSong", {
                 detail: { song: selectedSong, csvData: text },
             });
             document.dispatchEvent(changeSongEvent);
         } catch (error) {
-            console.error("Error fetching the CSV file:", error);
+            console.error("Error loading song data:", error);
         }
     });
 
@@ -698,14 +703,23 @@ document.addEventListener("restart", () => {
         "songSelect",
     ) as HTMLSelectElement;
 
-    // Create a custom event to restart the game
-    const restartEvent = new CustomEvent("changeSong", {
-        detail: {
-            song: songSelect.value,
-            csvData: document.querySelector("#csvData")?.textContent || "",
-        },
-    });
-    document.dispatchEvent(restartEvent);
+    const currentSong = songSelect.value;
+    // Use hardcoded song data instead of fetching
+    const songKey = currentSong as keyof typeof hardcodedSongs;
+    const csvText = hardcodedSongs[songKey];
+
+    if (csvText) {
+        // Create a custom event to restart the game
+        const restartEvent = new CustomEvent("changeSong", {
+            detail: {
+                song: currentSong,
+                csvData: csvText,
+            },
+        });
+        document.dispatchEvent(restartEvent);
+    } else {
+        console.error(`Hardcoded song data not found for: ${currentSong}`);
+    }
 });
 
 // Main event handler to restart the game using the R key
@@ -717,7 +731,7 @@ document.addEventListener("keydown", (e) => {
         ) as HTMLSelectElement;
         const currentSong = songSelect.value;
 
-        // Use hardcoded song data instead of fetching
+        // Use hardcoded song data instead of fetching CSV
         const songKey = currentSong as keyof typeof hardcodedSongs;
         const csvText = hardcodedSongs[songKey];
 
@@ -770,41 +784,115 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (typeof window !== "undefined") {
         window.onload = () => {
-            const samples = SampleLibrary.load({
-                instruments: [
-                    "bass-electric",
-                    "violin",
-                    "piano",
-                    "trumpet",
-                    "saxophone",
-                    "trombone",
-                    "flute",
-                ],
-                baseUrl: "samples/",
-            });
+            console.log("Loading instrument samples...");
 
-            Tone.ToneAudioBuffer.loaded().then(() => {
-                for (const instrument in samples) {
-                    samples[instrument].toDestination();
-                    samples[instrument].release = 0.5;
+            // Add error handling for sample loading
+            try {
+                const samples = SampleLibrary.load({
+                    instruments: [
+                        "bass-electric",
+                        "violin",
+                        "piano", // Make sure piano is available as it's used in the songs
+                        "trumpet",
+                        "saxophone",
+                        "trombone",
+                        "flute",
+                    ],
+                    baseUrl: "samples/",
+                });
+
+                // Add timeout in case samples don't load properly
+                const sampleLoadTimeout = setTimeout(() => {
+                    console.warn(
+                        "Sample loading timed out, starting game anyway",
+                    );
+                    startGameWithAvailableSamples();
+                }, 10000); // 10 second timeout
+
+                Tone.ToneAudioBuffer.loaded()
+                    .then(() => {
+                        clearTimeout(sampleLoadTimeout);
+                        console.log("All samples loaded successfully");
+
+                        for (const instrument in samples) {
+                            samples[instrument].toDestination();
+                            samples[instrument].release = 0.5;
+                        }
+
+                        startGameWithAvailableSamples(samples);
+                    })
+                    .catch((error) => {
+                        console.error("Error loading samples:", error);
+                        clearTimeout(sampleLoadTimeout);
+                        startGameWithAvailableSamples();
+                    });
+
+                // Function to start the game with whatever samples are available
+                function startGameWithAvailableSamples(loadedSamples?: {
+                    [key: string]: Tone.Sampler;
+                }) {
+                    // Use hardcoded song data
+                    const defaultSongKey =
+                        Constants.SONG_NAME as keyof typeof hardcodedSongs;
+                    const text = hardcodedSongs[defaultSongKey];
+
+                    // Create a default piano sampler if no samples were loaded
+                    if (!loadedSamples) {
+                        console.warn("Using a basic sampler as fallback");
+                        loadedSamples = {
+                            piano: new Tone.Sampler({
+                                urls: {
+                                    C4: "C4.mp3",
+                                },
+                                baseUrl:
+                                    "https://tonejs.github.io/audio/salamander/",
+                                onload: () =>
+                                    console.log("Fallback piano sample loaded"),
+                            }).toDestination(),
+                        };
+                    }
+
+                    // Initialize the game on first click (needed for audio context)
+                    const startGame = () => {
+                        main(text, loadedSamples || {});
+                    };
+
+                    console.log(
+                        "Game ready to start - click anywhere to begin!",
+                    );
+                    document.body.addEventListener("click", startGame, {
+                        once: true,
+                    });
+
+                    // Also allow spacebar to start game
+                    document.body.addEventListener(
+                        "keydown",
+                        (e) => {
+                            if (e.code === "Space") {
+                                startGame();
+                                document.body.removeEventListener(
+                                    "click",
+                                    startGame,
+                                );
+                            }
+                        },
+                        { once: true },
+                    );
                 }
-
-                // Use hardcoded song data instead of fetching CSV
+            } catch (error) {
+                console.error("Error in sample initialization:", error);
+                // Force start with no samples as a last resort
                 const defaultSongKey =
                     Constants.SONG_NAME as keyof typeof hardcodedSongs;
                 const text = hardcodedSongs[defaultSongKey];
 
-                // Initialize the game on first click (needed for audio context)
                 const startGame = () => {
-                    main(text, samples);
+                    main(text, {});
                 };
 
-                console.log("Game ready to start - click anywhere to begin!");
                 document.body.addEventListener("click", startGame, {
                     once: true,
                 });
-
-                // Also allow spacebar to start game
                 document.body.addEventListener(
                     "keydown",
                     (e) => {
@@ -818,7 +906,7 @@ window.addEventListener("DOMContentLoaded", () => {
                     },
                     { once: true },
                 );
-            });
+            }
         };
     }
 });
