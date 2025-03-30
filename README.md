@@ -128,4 +128,4 @@ This project demonstrates my proficiency in:
 - UI/UX design for interactive applications
 - Test-driven development practices
 
-Connect with me on [LinkedIn](https://linkedin.com/in/yourusername) or check out more of my projects on [GitHub](https://github.com/yourusername).
+Connect with me on [LinkedIn](https://linkedin.com/in/zahirhassan-cs) or check out more of my projects on [GitHub](https://github.com/WalrusPSD).
