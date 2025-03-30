@@ -10,11 +10,13 @@ const config: UserConfig = {
     build: {
         // Explicitly tell Vite to copy the assets folder to the output directory
         assetsDir: "assets",
+        // Add outDir configuration for Vercel
+        outDir: "dist",
         rollupOptions: {
             // Ensure .csv files are recognized as assets
             output: {
                 assetFileNames: (assetInfo) => {
-                    if (assetInfo.name.endsWith(".csv")) {
+                    if (assetInfo.name?.endsWith(".csv")) {
                         return "assets/[name][extname]";
                     }
                     return "assets/[name]-[hash][extname]";
