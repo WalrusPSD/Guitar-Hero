@@ -1,31 +1,28 @@
 import pluginChecker from "vite-plugin-checker";
-import { UserConfig } from "vite";
+import { UserConfig, defineConfig } from "vite";
+import { resolve } from "path";
 
-const config: UserConfig = {
+const config: UserConfig = defineConfig({
     plugins: [pluginChecker({ typescript: true, overlay: false })],
-    // Add publicDir configuration to ensure assets are copied to the build output
-    publicDir: "assets",
-    // Ensure base path is set to handle relative paths correctly
-    base: "./",
+    // Set the correct base path for deployment
+    base: "",
+    // Make sure assets are properly included
     build: {
-        // Explicitly tell Vite to copy the assets folder to the output directory
-        assetsDir: "assets",
-        // Add outDir configuration for Vercel
         outDir: "dist",
+        assetsInlineLimit: 0,
         rollupOptions: {
-            // Ensure .csv files are recognized as assets
-            output: {
-                assetFileNames: (assetInfo) => {
-                    if (assetInfo.name?.endsWith(".csv")) {
-                        return "assets/[name][extname]";
-                    }
-                    return "assets/[name]-[hash][extname]";
-                },
+            input: {
+                main: resolve(__dirname, "index.html"),
             },
         },
     },
-};
+    // Ensure the correct asset handling
+    server: {
+        fs: {
+            // Allow serving files from one level up to the project root
+            allow: [".."],
+        },
+    },
+});
 
-const getConfig = () => config;
-
-export default getConfig;
+export default config;

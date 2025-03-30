@@ -3,6 +3,7 @@ import { fromEvent, interval, merge, BehaviorSubject } from "rxjs";
 import { map, scan, withLatestFrom, tap, filter } from "rxjs/operators";
 import * as Tone from "tone";
 import { SampleLibrary } from "./tonejs-instruments";
+import { setupAssetDebugger } from "./utils/assetDebugger";
 
 // Constants
 const Viewport = {
@@ -744,61 +745,68 @@ document.addEventListener("keydown", (e) => {
 
 // The following simply runs your main function on window load.  Make sure to leave it in place.
 // You should not need to change this, beware if you are.
-if (typeof window !== "undefined") {
-    window.onload = () => {
-        const samples = SampleLibrary.load({
-            instruments: [
-                "bass-electric",
-                "violin",
-                "piano",
-                "trumpet",
-                "saxophone",
-                "trombone",
-                "flute",
-            ],
-            baseUrl: "samples/",
-        });
+window.addEventListener("DOMContentLoaded", () => {
+    // Setup the asset debugger in production
+    if (import.meta.env.PROD) {
+        setupAssetDebugger();
+    }
 
-        Tone.ToneAudioBuffer.loaded().then(() => {
-            for (const instrument in samples) {
-                samples[instrument].toDestination();
-                samples[instrument].release = 0.5;
-            }
+    if (typeof window !== "undefined") {
+        window.onload = () => {
+            const samples = SampleLibrary.load({
+                instruments: [
+                    "bass-electric",
+                    "violin",
+                    "piano",
+                    "trumpet",
+                    "saxophone",
+                    "trombone",
+                    "flute",
+                ],
+                baseUrl: "samples/",
+            });
 
-            // Use relative path for assets to ensure they work in both local and production
-            fetch(`./assets/${Constants.SONG_NAME}.csv`)
-                .then((response) => response.text())
-                .then((text) => {
-                    // Initialize the game on first click (needed for audio context)
-                    const startGame = () => {
-                        main(text, samples);
-                    };
+            Tone.ToneAudioBuffer.loaded().then(() => {
+                for (const instrument in samples) {
+                    samples[instrument].toDestination();
+                    samples[instrument].release = 0.5;
+                }
 
-                    console.log(
-                        "Game ready to start - click anywhere to begin!",
+                // Use relative path for assets to ensure they work in both local and production
+                fetch(`./assets/${Constants.SONG_NAME}.csv`)
+                    .then((response) => response.text())
+                    .then((text) => {
+                        // Initialize the game on first click (needed for audio context)
+                        const startGame = () => {
+                            main(text, samples);
+                        };
+
+                        console.log(
+                            "Game ready to start - click anywhere to begin!",
+                        );
+                        document.body.addEventListener("click", startGame, {
+                            once: true,
+                        });
+
+                        // Also allow spacebar to start game
+                        document.body.addEventListener(
+                            "keydown",
+                            (e) => {
+                                if (e.code === "Space") {
+                                    startGame();
+                                    document.body.removeEventListener(
+                                        "click",
+                                        startGame,
+                                    );
+                                }
+                            },
+                            { once: true },
+                        );
+                    })
+                    .catch((error) =>
+                        console.error("Error fetching the CSV file:", error),
                     );
-                    document.body.addEventListener("click", startGame, {
-                        once: true,
-                    });
-
-                    // Also allow spacebar to start game
-                    document.body.addEventListener(
-                        "keydown",
-                        (e) => {
-                            if (e.code === "Space") {
-                                startGame();
-                                document.body.removeEventListener(
-                                    "click",
-                                    startGame,
-                                );
-                            }
-                        },
-                        { once: true },
-                    );
-                })
-                .catch((error) =>
-                    console.error("Error fetching the CSV file:", error),
-                );
-        });
-    };
-}
+            });
+        };
+    }
+});
