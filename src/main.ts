@@ -4,6 +4,7 @@ import { map, scan, withLatestFrom, tap, filter } from "rxjs/operators";
 import * as Tone from "tone";
 import { SampleLibrary } from "./tonejs-instruments";
 import { setupAssetDebugger } from "./utils/assetDebugger";
+import { debugVercelAssets } from "./utils/vercelDebugger";
 
 // Constants
 const Viewport = {
@@ -742,6 +743,31 @@ document.addEventListener("keydown", (e) => {
             );
     }
 });
+
+// Add this code where your app initializes or in a button handler
+function addDebugButton() {
+    const debugButton = document.createElement("button");
+    debugButton.textContent = "Debug Assets";
+    debugButton.style.position = "fixed";
+    debugButton.style.bottom = "20px";
+    debugButton.style.right = "20px";
+    debugButton.style.zIndex = "1000";
+    debugButton.style.padding = "10px";
+    debugButton.style.background = "#ff5722";
+    debugButton.style.color = "white";
+    debugButton.style.border = "none";
+    debugButton.style.borderRadius = "4px";
+    debugButton.style.cursor = "pointer";
+
+    debugButton.addEventListener("click", () => {
+        debugVercelAssets();
+    });
+
+    document.body.appendChild(debugButton);
+}
+
+// Call this function early in your app initialization
+addDebugButton();
 
 // The following simply runs your main function on window load.  Make sure to leave it in place.
 // You should not need to change this, beware if you are.

@@ -5,24 +5,42 @@ export class SongList {
 
     async load(): Promise<void> {
         try {
-            // Update the path to use URL-based resolution
-            const songListPath = new URL(
-                "../assets/songs/song_list.json",
-                import.meta.url,
-            ).href;
+            // Use a relative path for Vercel compatibility
+            const songListPath = "/assets/songs/song_list.json";
+            console.log("Attempting to load song list from:", songListPath);
 
             const response = await fetch(songListPath);
             if (!response.ok) {
                 throw new Error(
-                    `Failed to load song list: ${response.statusText}`,
+                    `Failed to load song list: ${response.statusText} (${response.status})`,
                 );
             }
 
             const data = await response.json();
-            this.songs = data.songs;
+            console.log("Raw song list data:", data);
 
-            // Add debug logging
-            console.log("Loaded song list:", this.songs);
+            // Ensure the songs array is properly initialized
+            if (!Array.isArray(data.songs)) {
+                throw new Error(
+                    "Song list data does not contain a songs array",
+                );
+            }
+
+            // Convert raw data to Song objects
+            this.songs = data.songs.map((songInfo: any) => {
+                return new Song(
+                    {
+                        title: songInfo.title || "Unknown Title",
+                        artist: songInfo.artist || "Unknown Artist",
+                        url: songInfo.url || "",
+                        difficulty: songInfo.difficulty || 1,
+                    },
+                    songInfo.folder || "",
+                    songInfo.file || "",
+                );
+            });
+
+            console.log("Loaded and processed song list:", this.songs);
         } catch (error) {
             console.error("Error loading song list:", error);
         }

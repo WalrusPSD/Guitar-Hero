@@ -4,30 +4,43 @@ import { SongList } from "./SongList";
 export class SongLoader {
     async load(songList: SongList): Promise<SongData[]> {
         const songs: SongData[] = [];
+        console.log(
+            "Starting to load songs, song list has:",
+            songList.songs.length,
+            "songs",
+        );
 
         for (const songInfo of songList.songs) {
             try {
-                // Update path resolution to ensure it works in production
-                const csvPath = new URL(
-                    `../assets/songs/${songInfo.folder}/${songInfo.file}`,
-                    import.meta.url,
-                ).href;
+                // Use absolute path from root for Vercel compatibility
+                const csvPath = `/assets/songs/${songInfo.folder}/${songInfo.file}`;
+                console.log(`Attempting to load song from: ${csvPath}`);
 
                 const response = await fetch(csvPath);
                 if (!response.ok) {
                     throw new Error(
-                        `Failed to load song: ${response.statusText}`,
+                        `Failed to load song: ${response.statusText} (${response.status})`,
                     );
                 }
 
                 const csvText = await response.text();
+                console.log(
+                    `Successfully loaded CSV text for ${songInfo.name}, length: ${csvText.length}`,
+                );
+
                 const songData = this.parseCSV(csvText);
                 songs.push(songData);
+                console.log(
+                    `Successfully parsed song data for: ${songData.title}`,
+                );
             } catch (error) {
                 console.error(`Error loading song ${songInfo.name}:`, error);
             }
         }
 
+        console.log(
+            `Successfully loaded ${songs.length} songs out of ${songList.songs.length} attempted`,
+        );
         return songs;
     }
 
