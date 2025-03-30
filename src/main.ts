@@ -583,7 +583,8 @@ function main(csvContents: string, samples: { [key: string]: Tone.Sampler }) {
     changeSongButton.addEventListener("click", async () => {
         const selectedSong = songSelect.value;
         try {
-            const response = await fetch(`/assets/${selectedSong}.csv`);
+            // Change from "/assets/" to "./assets/" for relative path
+            const response = await fetch(`./assets/${selectedSong}.csv`);
             const text = await response.text();
             // Create a custom event to restart with new song
             const changeSongEvent = new CustomEvent("changeSong", {
@@ -721,7 +722,7 @@ document.addEventListener("keydown", (e) => {
         const currentSong = songSelect.value;
 
         // Fetch the current song data and restart
-        fetch(`/assets/${currentSong}.csv`)
+        fetch(`./assets/${currentSong}.csv`)
             .then((response) => response.text())
             .then((text) => {
                 const changeSongEvent = new CustomEvent("changeSong", {
