@@ -764,7 +764,8 @@ if (typeof window !== "undefined") {
                 samples[instrument].release = 0.5;
             }
 
-            fetch(`/assets/${Constants.SONG_NAME}.csv`)
+            // Use relative path for assets to ensure they work in both local and production
+            fetch(`./assets/${Constants.SONG_NAME}.csv`)
                 .then((response) => response.text())
                 .then((text) => {
                     // Initialize the game on first click (needed for audio context)
