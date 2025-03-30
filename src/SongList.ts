@@ -1,48 +1,40 @@
 import { Song } from "./Song";
+import { hardcodedSongs } from "./hardcodedSongs";
 
 export class SongList {
     songs: Song[] = [];
 
     async load(): Promise<void> {
         try {
-            // Use a relative path for Vercel compatibility
-            const songListPath = "/assets/songs/song_list.json";
-            console.log("Attempting to load song list from:", songListPath);
+            console.log("Loading hardcoded songs...");
 
-            const response = await fetch(songListPath);
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to load song list: ${response.statusText} (${response.status})`,
-                );
-            }
-
-            const data = await response.json();
-            console.log("Raw song list data:", data);
-
-            // Ensure the songs array is properly initialized
-            if (!Array.isArray(data.songs)) {
-                throw new Error(
-                    "Song list data does not contain a songs array",
-                );
-            }
-
-            // Convert raw data to Song objects
-            this.songs = data.songs.map((songInfo: any) => {
-                return new Song(
+            // Create Song objects for the hardcoded songs
+            this.songs = [
+                new Song(
                     {
-                        title: songInfo.title || "Unknown Title",
-                        artist: songInfo.artist || "Unknown Artist",
-                        url: songInfo.url || "",
-                        difficulty: songInfo.difficulty || 1,
+                        title: "I Wonder",
+                        artist: "Kanye West",
+                        url: "",
+                        difficulty: 2,
                     },
-                    songInfo.folder || "",
-                    songInfo.file || "",
-                );
-            });
+                    "", // Folder is not needed with hardcoded songs
+                    "IWonder.csv", // We'll keep the filename for consistency
+                ),
+                new Song(
+                    {
+                        title: "Among Us Theme",
+                        artist: "Game OST",
+                        url: "",
+                        difficulty: 1,
+                    },
+                    "", // Folder is not needed with hardcoded songs
+                    "amongUs.csv", // We'll keep the filename for consistency
+                ),
+            ];
 
-            console.log("Loaded and processed song list:", this.songs);
+            console.log("Loaded hardcoded song list:", this.songs);
         } catch (error) {
-            console.error("Error loading song list:", error);
+            console.error("Error loading hardcoded song list:", error);
         }
     }
 }

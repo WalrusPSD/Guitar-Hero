@@ -5,6 +5,7 @@ import * as Tone from "tone";
 import { SampleLibrary } from "./tonejs-instruments";
 import { setupAssetDebugger } from "./utils/assetDebugger";
 import { debugVercelAssets } from "./utils/vercelDebugger";
+import { hardcodedSongs } from "./hardcodedSongs";
 
 // Constants
 const Viewport = {
@@ -18,14 +19,7 @@ const Constants = {
     COLUMNS: 4, // Number of columns in the game
     HIT_ZONE_Y: 350, // Y-coordinate of the hit zone - adjusted to match the visual hitpad
     SONG_NAME: "IWonder", // Default song file (CSV) to load
-    AVAILABLE_SONGS: [
-        "amongUs",
-        "IWonder",
-        "RightMyWRongs",
-        "RockinRobin",
-        "Runaway",
-        "TokyoGhoulOP2",
-    ], // Updated list of available songs
+    AVAILABLE_SONGS: ["amongUs", "IWonder"], // Only the two hardcoded songs
 } as const;
 
 const columnColors = ["green", "red", "blue", "yellow"] as const;
@@ -723,24 +717,21 @@ document.addEventListener("keydown", (e) => {
         ) as HTMLSelectElement;
         const currentSong = songSelect.value;
 
-        // Fetch the current song data and restart
-        fetch(`./assets/${currentSong}.csv`)
-            .then((response) => response.text())
-            .then((text) => {
-                const changeSongEvent = new CustomEvent("changeSong", {
-                    detail: {
-                        song: currentSong,
-                        csvData: text,
-                    },
-                });
-                document.dispatchEvent(changeSongEvent);
-            })
-            .catch((error) =>
-                console.error(
-                    "Error fetching the CSV file for restart:",
-                    error,
-                ),
-            );
+        // Use hardcoded song data instead of fetching
+        const songKey = currentSong as keyof typeof hardcodedSongs;
+        const csvText = hardcodedSongs[songKey];
+
+        if (csvText) {
+            const changeSongEvent = new CustomEvent("changeSong", {
+                detail: {
+                    song: currentSong,
+                    csvData: csvText,
+                },
+            });
+            document.dispatchEvent(changeSongEvent);
+        } else {
+            console.error(`Hardcoded song data not found for: ${currentSong}`);
+        }
     }
 });
 
@@ -798,40 +789,35 @@ window.addEventListener("DOMContentLoaded", () => {
                     samples[instrument].release = 0.5;
                 }
 
-                // Use relative path for assets to ensure they work in both local and production
-                fetch(`./assets/${Constants.SONG_NAME}.csv`)
-                    .then((response) => response.text())
-                    .then((text) => {
-                        // Initialize the game on first click (needed for audio context)
-                        const startGame = () => {
-                            main(text, samples);
-                        };
+                // Use hardcoded song data instead of fetching CSV
+                const defaultSongKey =
+                    Constants.SONG_NAME as keyof typeof hardcodedSongs;
+                const text = hardcodedSongs[defaultSongKey];
 
-                        console.log(
-                            "Game ready to start - click anywhere to begin!",
-                        );
-                        document.body.addEventListener("click", startGame, {
-                            once: true,
-                        });
+                // Initialize the game on first click (needed for audio context)
+                const startGame = () => {
+                    main(text, samples);
+                };
 
-                        // Also allow spacebar to start game
-                        document.body.addEventListener(
-                            "keydown",
-                            (e) => {
-                                if (e.code === "Space") {
-                                    startGame();
-                                    document.body.removeEventListener(
-                                        "click",
-                                        startGame,
-                                    );
-                                }
-                            },
-                            { once: true },
-                        );
-                    })
-                    .catch((error) =>
-                        console.error("Error fetching the CSV file:", error),
-                    );
+                console.log("Game ready to start - click anywhere to begin!");
+                document.body.addEventListener("click", startGame, {
+                    once: true,
+                });
+
+                // Also allow spacebar to start game
+                document.body.addEventListener(
+                    "keydown",
+                    (e) => {
+                        if (e.code === "Space") {
+                            startGame();
+                            document.body.removeEventListener(
+                                "click",
+                                startGame,
+                            );
+                        }
+                    },
+                    { once: true },
+                );
             });
         };
     }

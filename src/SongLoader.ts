@@ -1,31 +1,33 @@
 import { Song, SongData } from "./Song";
 import { SongList } from "./SongList";
+import { hardcodedSongs } from "./hardcodedSongs";
 
 export class SongLoader {
     async load(songList: SongList): Promise<SongData[]> {
         const songs: SongData[] = [];
         console.log(
-            "Starting to load songs, song list has:",
+            "Starting to load hardcoded songs, song list has:",
             songList.songs.length,
             "songs",
         );
 
         for (const songInfo of songList.songs) {
             try {
-                // Use absolute path from root for Vercel compatibility
-                const csvPath = `/assets/songs/${songInfo.folder}/${songInfo.file}`;
-                console.log(`Attempting to load song from: ${csvPath}`);
+                // Get the song data from hardcoded songs based on filename
+                const songKey = songInfo.file.replace(
+                    ".csv",
+                    "",
+                ) as keyof typeof hardcodedSongs;
+                const csvText = hardcodedSongs[songKey];
 
-                const response = await fetch(csvPath);
-                if (!response.ok) {
+                if (!csvText) {
                     throw new Error(
-                        `Failed to load song: ${response.statusText} (${response.status})`,
+                        `Hardcoded song data not found for: ${songKey}`,
                     );
                 }
 
-                const csvText = await response.text();
                 console.log(
-                    `Successfully loaded CSV text for ${songInfo.name}, length: ${csvText.length}`,
+                    `Successfully loaded hardcoded data for ${songInfo.name}, length: ${csvText.length}`,
                 );
 
                 const songData = this.parseCSV(csvText);
