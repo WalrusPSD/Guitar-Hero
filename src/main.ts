@@ -205,6 +205,55 @@ const getColumnCenterX = (column: number): number => {
     }
 };
 
+/**
+ * Creates a visual hit effect animation when a note is successfully hit.
+ * @param column - The column where the hit occurred.
+ */
+const createHitEffect = (column: number): void => {
+    const svg = document.querySelector("#svgCanvas") as SVGSVGElement;
+    if (!svg) return;
+
+    const x = getColumnCenterX(column);
+    const y = Constants.HIT_ZONE_Y;
+
+    // Create a smoother ripple effect with proper styling
+    const ripple = document.createElementNS(svg.namespaceURI, "circle");
+    ripple.setAttribute("cx", `${x}`);
+    ripple.setAttribute("cy", `${y}`);
+    ripple.setAttribute("r", "15");
+    ripple.setAttribute("fill", "none");
+    ripple.setAttribute("stroke", `url(#${columnColors[column]}Gradient)`);
+    ripple.setAttribute("stroke-width", "3");
+    ripple.setAttribute("filter", "url(#glow)");
+    ripple.classList.add("hit-effect");
+
+    svg.appendChild(ripple);
+
+    // Remove the element after animation completes
+    setTimeout(() => {
+        if (ripple.parentNode === svg) {
+            svg.removeChild(ripple);
+        }
+    }, 500);
+};
+
+/**
+ * Animates the score change when points are earned.
+ */
+const animateScoreChange = (): void => {
+    const scoreText = document.querySelector("#scoreText") as HTMLElement;
+    if (!scoreText) return;
+
+    // Remove existing class to reset animation
+    scoreText.classList.remove("score-change");
+
+    // Force browser to recognize the change by triggering reflow
+    void scoreText.offsetWidth;
+
+    // Add class back to trigger animation again
+    scoreText.classList.add("score-change");
+};
+
 // Game logic functions
 
 /**
@@ -228,21 +277,54 @@ const updateNotes = (
  * Updates the progress of sustained notes.
  * @param sustainedNotes - The current array of sustained notes.
  * @param elapsedTime - The time elapsed since the last update.
- * @returns An updated array of sustained notes.
+ * @param state - The current game state to update score when notes complete.
+ * @returns An object containing updated sustained notes array and updated state values.
  */
 const updateSustainedNotes = (
     sustainedNotes: ReadonlyArray<NoteObject>,
     elapsedTime: number,
-): ReadonlyArray<NoteObject> => {
-    return sustainedNotes
+): {
+    updatedSustainedNotes: ReadonlyArray<NoteObject>;
+    scoreGain: number;
+    newConsecutiveHits: number;
+} => {
+    let scoreGain = 0;
+    let consecutiveHitsGain = 0;
+
+    // Track notes that will be completed in this update
+    const completingNotes = sustainedNotes.filter((note) => {
+        const newProgress = Math.min(
+            (note.sustainProgress || 0) + elapsedTime / note.duration,
+            1,
+        );
+        return newProgress >= 1; // This note will complete
+    });
+
+    // Award points for each completed sustained note
+    if (completingNotes.length > 0) {
+        // Add points for each completed sustained note
+        scoreGain = completingNotes.length;
+        consecutiveHitsGain = completingNotes.length;
+
+        // Animate score increase
+        animateScoreChange();
+    }
+
+    const updatedSustainedNotes = sustainedNotes
         .map((note) => ({
             ...note,
             sustainProgress: Math.min(
-                (note.sustainProgress || 0) + elapsedTime / note.duration, // Update sustain progress
+                (note.sustainProgress || 0) + elapsedTime / note.duration,
                 1,
             ),
         }))
         .filter((note) => note.sustainProgress < 1); // Filter out fully sustained notes
+
+    return {
+        updatedSustainedNotes,
+        scoreGain,
+        newConsecutiveHits: consecutiveHitsGain,
+    };
 };
 
 /**
@@ -273,17 +355,31 @@ const updateState = (
         elapsedTime / 1000,
     );
 
-    const updatedSustainedNotes = updateSustainedNotes(
+    // Update sustained notes and calculate score improvements
+    const sustainedResult = updateSustainedNotes(
         state.sustainedNotes,
         elapsedTime / 1000,
     );
+
+    // Add points for completed sustained notes (multiplied by current multiplier)
+    const newScore =
+        state.score + Math.round(sustainedResult.scoreGain * state.multiplier);
 
     const missedNotes = state.notes.filter(
         (note) => note.y >= Constants.HIT_ZONE_Y && !note.scored, // Identify missed notes
     );
 
-    const newConsecutiveNotesHit =
-        missedNotes.length > 0 ? 0 : state.consecutiveNotesHit; // Reset combo if a note is missed
+    // Calculate new consecutive hits
+    let newConsecutiveNotesHit = state.consecutiveNotesHit;
+
+    // If any notes were missed, reset combo
+    if (missedNotes.length > 0) {
+        newConsecutiveNotesHit = 0;
+    } else {
+        // Otherwise add points from completed sustained notes
+        newConsecutiveNotesHit += sustainedResult.newConsecutiveHits;
+    }
+
     const newMultiplier = 1 + Math.floor(newConsecutiveNotesHit / 10) * 0.2; // Calculate new score multiplier
 
     // Only set game over when all notes have passed and we've waited another 5 seconds after the last note
@@ -293,14 +389,15 @@ const updateState = (
     const gameOver =
         currentTime >= lastNoteTime + 5 && // Add a 5-second delay after the last note
         updatedNotes.length === 0 && // All notes have been played or missed
-        updatedSustainedNotes.length === 0; // No sustained notes are active
+        sustainedResult.updatedSustainedNotes.length === 0; // No sustained notes are active
 
     return {
         ...state,
         notes: updatedNotes,
-        sustainedNotes: updatedSustainedNotes,
+        sustainedNotes: sustainedResult.updatedSustainedNotes,
         consecutiveNotesHit: newConsecutiveNotesHit,
         multiplier: newMultiplier,
+        score: newScore,
         time: currentTime,
         gameOver,
     };
@@ -326,6 +423,16 @@ const handleKeyPress = (
     };
     const column = columnMap[key]; // Map key press to corresponding column
 
+    // First check if we're already holding a sustained note in this column
+    const existingSustainedNote = state.sustainedNotes.find(
+        (note) => note.column === column,
+    );
+
+    if (existingSustainedNote) {
+        // Already holding this column, don't process as a new hit
+        return state;
+    }
+
     const hitNote = state.notes.find(
         (note) =>
             note.column === column &&
@@ -335,13 +442,32 @@ const handleKeyPress = (
     );
 
     if (hitNote) {
-        playNote(hitNote, samples); // Play the note if it was correctly hit
-        const newScore = Math.round(state.score + 1 * state.multiplier); // Calculate new score
-        const newConsecutiveNotesHit = state.consecutiveNotesHit + 1; // Increment combo
-        const newMultiplier = 1 + Math.floor(newConsecutiveNotesHit / 10) * 0.2; // Update multiplier
+        // Only play the note sound for regular notes or the initial hit of sustained notes
+        playNote(hitNote, samples);
+
+        // Create hit effect animation
+        createHitEffect(column);
+
+        // For regular notes, award points immediately
+        // For sustained notes, only set them as "in progress" - points will be awarded on successful completion
+        const isSustainedNote = hitNote.isSustained;
+
+        let newScore = state.score;
+        let newConsecutiveNotesHit = state.consecutiveNotesHit;
+        let newMultiplier = state.multiplier;
+
+        // Only award points immediately for regular notes
+        if (!isSustainedNote) {
+            newScore = Math.round(state.score + 1 * state.multiplier);
+            newConsecutiveNotesHit = state.consecutiveNotesHit + 1;
+            newMultiplier = 1 + Math.floor(newConsecutiveNotesHit / 10) * 0.2;
+
+            // Add score change animation for regular notes
+            animateScoreChange();
+        }
 
         const updatedNotes = state.notes.filter((note) => note !== hitNote); // Remove hit note from state
-        const newSustainedNotes = hitNote.isSustained
+        const newSustainedNotes = isSustainedNote
             ? [...state.sustainedNotes, { ...hitNote, sustainProgress: 0 }]
             : state.sustainedNotes;
 
@@ -379,6 +505,54 @@ const handleKeyUp = (state: State, key: Key): State => {
         KeyL: 3,
     };
     const column = columnMap[key]; // Map key release to corresponding column
+
+    // Check if we have an active sustained note for this column
+    const activeSustainedNote = state.sustainedNotes.find(
+        (note) => note.column === column,
+    );
+
+    // If we released a key while holding a sustained note, check if we held it long enough
+    if (activeSustainedNote) {
+        const completionThreshold = 0.8; // 80% completion is considered successful
+
+        // If the player held the note for at least 80% of its duration, count it as completed
+        if (
+            activeSustainedNote.sustainProgress &&
+            activeSustainedNote.sustainProgress >= completionThreshold
+        ) {
+            // Consider it successful and award points
+            const scoreGain = Math.round(state.multiplier);
+            const newScore = state.score + scoreGain;
+            const newConsecutiveNotesHit = state.consecutiveNotesHit + 1;
+            const newMultiplier =
+                1 + Math.floor(newConsecutiveNotesHit / 10) * 0.2;
+
+            // Show score increase animation
+            animateScoreChange();
+
+            return {
+                ...state,
+                sustainedNotes: state.sustainedNotes.filter(
+                    (note) => note.column !== column,
+                ),
+                score: newScore,
+                consecutiveNotesHit: newConsecutiveNotesHit,
+                multiplier: newMultiplier,
+            };
+        }
+        // If the player released too early (before 80% completion)
+        else if (activeSustainedNote.sustainProgress < completionThreshold) {
+            // Count as a miss - reset combo and multiplier
+            return {
+                ...state,
+                sustainedNotes: state.sustainedNotes.filter(
+                    (note) => note.column !== column,
+                ),
+                consecutiveNotesHit: 0,
+                multiplier: 1,
+            };
+        }
+    }
 
     // Reset the scored status of the note when the key is released
     const updatedNotes = state.notes.map((note) =>
@@ -444,28 +618,50 @@ const renderState = (
             const noteX = getColumnCenterX(note.column);
             const circleRadius = Viewport.CANVAS_WIDTH * 0.075;
 
-            if (note.isSustained && note.sustainProgress !== undefined) {
-                const tailHeight = 100;
-                const remainingTailHeight =
-                    tailHeight * (1 - note.sustainProgress);
-                const sustainRect = document.createElementNS(
-                    svg.namespaceURI,
-                    "rect",
+            // Add tail for sustained notes with proportional length to duration
+            if (note.isSustained) {
+                // Calculate tail height proportional to note duration
+                // Base the tail length on note duration (pixels per second)
+                const tailPixelsPerSecond = 50;
+                const tailHeight = Math.min(
+                    note.duration * tailPixelsPerSecond,
+                    300, // Maximum reasonable tail length
                 );
-                sustainRect.setAttribute("x", `${noteX - 7.5}`);
-                sustainRect.setAttribute(
-                    "y",
-                    `${noteY - remainingTailHeight - circleRadius}`,
-                );
-                sustainRect.setAttribute("width", "15");
-                sustainRect.setAttribute(
-                    "height",
-                    `${remainingTailHeight + circleRadius}`,
-                );
-                sustainRect.setAttribute("fill", columnColors[note.column]);
-                sustainRect.setAttribute("opacity", "0.5");
-                sustainRect.classList.add("sustain");
-                svg.appendChild(sustainRect);
+
+                let remainingTailHeight = tailHeight;
+                if (note.sustainProgress !== undefined) {
+                    remainingTailHeight =
+                        tailHeight * (1 - note.sustainProgress);
+                }
+
+                // Only render sustain tail if there's actual height remaining
+                if (remainingTailHeight > 0) {
+                    const sustainRect = document.createElementNS(
+                        svg.namespaceURI,
+                        "rect",
+                    );
+
+                    // Position sustain rectangle properly relative to note
+                    sustainRect.setAttribute("x", `${noteX - 7.5}`);
+                    sustainRect.setAttribute(
+                        "y",
+                        `${Math.max(0, noteY - remainingTailHeight)}`,
+                    );
+                    sustainRect.setAttribute("width", "15");
+
+                    // Ensure height calculation respects the game boundaries
+                    const actualHeight = Math.min(remainingTailHeight, noteY);
+                    sustainRect.setAttribute("height", `${actualHeight}`);
+
+                    // Create gradient for sustained notes
+                    sustainRect.setAttribute(
+                        "fill",
+                        `url(#${columnColors[note.column]}Gradient)`,
+                    );
+                    sustainRect.setAttribute("opacity", "0.4");
+                    sustainRect.classList.add("sustain");
+                    svg.appendChild(sustainRect);
+                }
             }
 
             const noteElem = document.createElementNS(
@@ -859,6 +1055,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
                     // Initialize the game on first click (needed for audio context)
                     const startGame = () => {
+                        // Hide the start prompt when game starts
+                        const startPrompt =
+                            document.getElementById("startPrompt");
+                        if (startPrompt) {
+                            startPrompt.style.display = "none";
+                        }
+
                         main(text, loadedSamples || {});
                     };
 
