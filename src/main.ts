@@ -512,7 +512,10 @@ const handleKeyUp = (state: State, key: Key): State => {
     );
 
     // If we released a key while holding a sustained note, check if we held it long enough
-    if (activeSustainedNote) {
+    if (
+        activeSustainedNote &&
+        activeSustainedNote.sustainProgress !== undefined
+    ) {
         const completionThreshold = 0.8; // 80% completion is considered successful
 
         // If the player held the note for at least 80% of its duration, count it as completed
